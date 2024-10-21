@@ -1,4 +1,5 @@
 ########################################################
+### FORKED FROM:                               ~~~~~ ###
 ### ChromSyn Synteny Plot functions            ~~~~~ ###
 ### VERSION: 1.6.1                             ~~~~~ ###
 ### LAST EDIT: 10/09/24                        ~~~~~ ###
@@ -134,7 +135,7 @@ version = "v1.6.1"
 
 ####################################### ::: SETUP ::: ############################################
 ### ~ Commandline arguments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-defaults = list(busco="busco.fofn",sequences="sequences.fofn",order="",
+defaults = list(busco="busco.fofn",sequences="sequences.fofn",order="",anchors="", remove_busco=FALSE,
                 regdata="",cndata="",restrict="",regmirror=TRUE,
                 minregion=50000,maxregions=0,
                 align="justify",ygap=4,ypad=0.1,ybleed=0.0,synbad="",
@@ -1318,6 +1319,17 @@ for(genome in settings$order){
   }
 }
 
+has_anchors<-FALSE
+if(settings[['anchors']] != ""){
+  logWrite("Found anchors File....")
+  anch <- read_csv(settings[['anchors']],show_col_types = FALSE) 
+  anch <- merge(anch,
+                seqdb %>% select('Genome','SeqName', 'xshift','yshift'),  
+                by = c('Genome','SeqName')
+              )
+  has_anchors<-TRUE
+}
+
 ### ~ TIDK Telomeres ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 logWrite("TIDK Telomeres...")
 #i# Combine with seqdb to get xshift and yshift
@@ -1708,11 +1720,24 @@ chromSynPlot <- function(gendb,seqdb,regdb,linkages=c()){
   plt <- plt + geom_segment(data=pD,mapping=aes(x=x,xend=x,y=y,yend=yend),colour="black")
   #!# Add plotting position numbers to tickmarks
   # Features
-  cat("...features", file = stderr())    
+  cat("...features", file = stderr())  
+
   #?# Could have a feature type field and map colour by type?
   if(settings$debug){ logWrite(paste(nrow(ftdb),"features & gaps to plot")) }
   if(nrow(ftdb)){
-    pD <- ftdb %>% mutate(xpos=(xshift+Pos)/rescale)
+  ################################################################################
+    pD <- ftdb %>% mutate(xpos=(xshift+Pos)/rescale) 
+    if(settings[['remove_busco']]){
+      pD <- filter(pD, Fill != 'yellow')
+    }
+    if(has_anchors){
+      anch <- mutate(anch, xpos=(xshift+Pos)/rescale, Col=if_else(Strand =='+', 'chartreuse4', 'darkred'))
+      plt <- plt + 
+              geom_point(data=anch,mapping=aes(x=xpos,y=yshift+1.11),color=anch$Col,fill=anch$Col,shape=25,size=2) +
+              ggtext::geom_richtext(data=anch, aes(x=xpos+ 1.8*nchar(AnchorName),y=yshift,label = AnchorName), color=anch$Col, fill=NA, label.colour=NA, 
+                                                                                      nudge_y=1.12+ 0.05*nchar(anch$AnchorName), size=2, angle = 60)
+    }
+    ################################################################################
     plt <- plt + geom_point(data=pD,mapping=aes(x=xpos,y=yshift),colour=pD$Col,fill=pD$Fill,shape=pD$Shape,size=pD$Size)
     if("CN" %in% colnames(ftdb) & sum(! is.na(ftdb$CN)) > 0){
       plt <- plt + colScale
@@ -1749,8 +1774,11 @@ chromSynPlot <- function(gendb,seqdb,regdb,linkages=c()){
       axis.text.y=element_blank(),
       axis.ticks.y=element_blank()
     )
+  ymax <- max(pD$yshift)
+  ymin <- min(pD$yshift)
   if(settings$labels){  # & ! "CN" %in% colnames(ftdb)){ #!# Need to add CN legend
-    plt <- plt + theme(legend.position = "None")
+    plt <- plt + theme(legend.position = "None") +  ylim(ymin-0.75, ymax+1.6)
+
   }
   cat("\n", file = stderr())    
   return(plt)  
@@ -1824,7 +1852,6 @@ while(! plotted & plotsplits < linknum){
   
 }
 
-
 ##### ======================== Tidy and Finish ======================== #####
 if(file.exists("Rplots.pdf")){
   file.remove("Rplots.pdf")
@@ -1834,4 +1861,3 @@ if(file.exists("Rplots.pdf")){
 options(warn = oldwarn)
 logWrite("#RCODE ChromSyn.R finished.")
 #quit("no",0)
-

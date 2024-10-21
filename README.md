@@ -1,3 +1,20 @@
+# Changes in forked version
+
+- Included *remove_busco* (boolean) parameter. It removes duplcated BUSCO genes from plot
+- Included *anchors* (string ~ /path_to_csv_file) that allows to anchor short sequences into the synteny plots. The CSV file has to be formated as:
+
+
+	|        AnchorName        |   Genome   |   SeqName |  Pos |  Strand |
+	| --------------------- | ----------- |------------ |----- |-------- |
+	| Pv170F19_pCCBacF1 | POGVITh1 | 1 | 93996909 | + |
+	| Pv184J20_T7 |POGVITh2 |14 |85312526 | - | 
+
+	-	**AnchorName** (str) are the labels of the anchors
+	- **Genome** (str) are the names of the genomes, they have to be the same as the ones set in *sequences.fofn* 
+	- **SeqName** (int) is the *region* (scaffold, contig, chromosome, etc) number
+	- **Pos** (int) Position of the sequence (on the original strand)
+	- **Strand** (str) ‘+’ if sequence on the same strand; ‘-’ if opposite
+
 # ChromSyn: Chromosome-level synteny plotting using orthologous regions
 
 ChromSyn is designed to compile a set of BUSCO runs with the same version and lineage into chromosome synteny plots. This is achieved by establishing blocks of synteny based on co-linear regions that share an identifier. Whilst ChromSyn is designed with BUSCO in mind, it is therefore fairly simple to use alternative sources of synteny. Future releases will expand options for replacing BUSCO, so please get in touch if this would be useful to you.
